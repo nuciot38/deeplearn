@@ -34,10 +34,14 @@
 
 
 
+
+
 - 推理：任何一个数的平方(为一个数)可以表达为若干个数的平方和
   $$
   a^2=b=a_1^2+a_2^2....
   $$
+
+
 
 
 
@@ -60,6 +64,8 @@
   $$
   t_1=\lfloor a/n \rfloor
   $$
+
+
 
 
 
@@ -134,4 +140,35 @@ $$
 
   > 1. 首先通过选择性搜索，对待检测的图片进行搜索出2000个候选窗口
   > 2. 特征提取阶段。把整张待检测的图片，输入CNN中，进行一次性特征提取，得到feature maps，然后在feature maps中找到各个候选框的区域，再对各个候选框采用金字塔空间池化，提取出固定长度的特征向量。(RCNN输入的是每个候选框，然后再进入CNN，因为SPP只需要一次对整张图片进行特征提取，速度会大大提升)
-  > 3. 利用Softmax算法进行特征向量分类识别
+  > 3. 利用Softmax算法进行特征向量分类识别 
+
+## code
+
+```
+def spatial_pyramid_pool(previous_conv, num_sample, previous_conv_size, out_pool_size):
+  """
+  previous_conv: a tensor vector of previous convolution layer
+  num_sample: an int number of image in the batch
+  previous_conv_size: an int vector [height, width] of the matrix features size of previous convolution layer
+  out_pool_size: a int vector of expected output size of max pooling layer
+  
+  returns: a tensor vector with shape [1 x n] is the concentration of multi-level pooling
+  """
+  for i in range(len(out_pool_size)):
+    h_strd = h_size = math.ceil(float(previous_conv_size[0]) / out_pool_size[i])
+    w_strd = w_size = math.ceil(float(previous_conv_size[1]) / out_pool_size[i])
+    pad_h = int(out_pool_size[i] * h_size - previous_conv_size[0])
+    pad_w = int(out_pool_size[i] * w_size - previous_conv_size[1])
+    new_previous_conv = tf.pad(previous_conv, tf.constant([[0, 0], [0, pad_h], [0, pad_w], [0, 0]]))
+    max_pool = tf.nn.max_pool(new_previous_conv,
+                   ksize=[1,h_size, h_size, 1],
+                   strides=[1,h_strd, w_strd,1],
+                   padding='SAME')
+    if (i == 0):
+      spp = tf.reshape(max_pool, [num_sample, -1])
+    else:
+      spp = tf.concat(axis=1, values=[spp, tf.reshape(max_pool, [num_sample, -1])])
+  
+  return spp
+```
+
